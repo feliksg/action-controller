@@ -92,6 +92,14 @@ class HelloWorld < Application
         str = "<set_var>#{@me}</set_var>"
         XML.parse(str).to_s
       end
+      csv do
+        data = [["set_var"], [123]]
+        CSV.build do |csv|
+          data.each do |row|
+            csv.row row
+          end
+        end
+      end
     end
   end
 

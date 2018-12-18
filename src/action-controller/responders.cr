@@ -1,3 +1,4 @@
+require "csv"
 require "json"
 require "xml"
 require "yaml"
@@ -78,6 +79,7 @@ module ActionController::Responders
 
   MIME_TYPES = {
     binary: "application/octet-stream",
+    csv:    "text/csv",
     json:   "application/json",
     xml:    "application/xml",
     text:   "text/plain",
@@ -85,7 +87,7 @@ module ActionController::Responders
     yaml:   "text/yaml",
   }
 
-  macro render(status = :ok, json = nil, xml = nil, html = nil, yaml = nil, text = nil, binary = nil)
+  macro render(status = :ok, json = nil, xml = nil, html = nil, yaml = nil, text = nil, binary = nil, csv = nil)
     response = self.response
     {% if status != :ok || status != 200 %}
       response.status_code = {{STATUS_CODES[status] || status}}
@@ -132,7 +134,12 @@ module ActionController::Responders
       output = {{binary}}
     {% end %}
 
-    {% if json || xml || html || yaml || text || binary %}
+    {% if csv %}
+      response.content_type = MIME_TYPES[:csv] unless ctype
+      output = {{csv}}
+    {% end %}
+
+    {% if json || xml || html || yaml || text || binary || csv %}
         response << output unless self.request.method == "HEAD"
     {% end %}
 
@@ -263,6 +270,16 @@ module ActionController::Responders
       {% end %}
     end
 
+    macro csv(obj = nil, &block)
+      {% if block.is_a?(Nop) %}
+        options[:csv] = ->{ {{obj}} }
+      {% else %}
+        options[:csv] = ->{
+          {{ block.body }}
+        }
+      {% end %}
+    end
+
     # Respond appropriately
     def build_response
       found = nil
@@ -305,6 +322,7 @@ module ActionController::Responders
       "text/x-yaml":              :yaml,
       "application/yaml":         :yaml,
       "application/x-yaml":       :yaml,
+      "text/csv":                 :csv,
     }
 
     # Creates an ordered list of supported formats with requested mime types
